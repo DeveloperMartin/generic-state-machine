@@ -1,5 +1,9 @@
 import { PrismaClient } from "../../../models/client"
 
+export function nameT<T>(type: T) {
+  return type as unknown as string
+}
+
 export type DummyObjectState =
   | 'no-state'
   | 'created'
