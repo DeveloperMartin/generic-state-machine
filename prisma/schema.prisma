@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  userId       Int     @id @default(autoincrement())
+  username     String  @unique
+  fullName     String
+  passwordHash String?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(dbgenerated("getutcdate()")) @db.DateTimeOffset
+  updatedAt DateTime @default(dbgenerated("getutcdate()")) @updatedAt @db.DateTimeOffset
+
+  roles Role[]
+}
+
+model Role {
+  roleId      Int    @id @default(autoincrement())
+  code        String @unique
+  description String
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(dbgenerated("getutcdate()")) @db.DateTimeOffset
+  updatedAt DateTime @default(dbgenerated("getutcdate()")) @updatedAt @db.DateTimeOffset
+
+  permissions     Permission[]
+  users           User[]
+  StateTransition StateTransition[]
+}
+
+model Permission {
+  permissionId Int     @id @default(autoincrement())
+  code         String  @unique
+  description  String?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(dbgenerated("getutcdate()")) @db.DateTimeOffset
+  updatedAt DateTime @default(dbgenerated("getutcdate()")) @updatedAt @db.DateTimeOffset
+
+  roles Role[]
+}
+
+model State {
+  stateId   Int      @id @default(autoincrement())
+  code      String   @unique @db.VarChar(50)
+  name      String   @unique @db.NVarChar(50)
+  iconName  String?  @db.NVarChar(50)
+  iconColor String?  @db.NVarChar(50)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(dbgenerated("getutcdate()")) @db.DateTimeOffset
+  updatedAt DateTime @default(dbgenerated("getutcdate()")) @updatedAt @db.DateTimeOffset
+
+  transitionFrom          StateTransition[]         @relation("RequestStatesToRequestTransitions_idRequestStateFrom")
+  transitionTo            StateTransition[]         @relation("RequestStatesToRequestTransitions_idRequestStateTo")
+  dummyObjectStateHistory DummyObjectStateHistory[]
+  dummyObjects            DummyObject[]
+}
+
+model StateTransitionGroup {
+  stateTransitionGroupId Int      @id @default(autoincrement())
+  code                   String   @unique @db.NVarChar(50)
+  description            String   @db.NVarChar(200)
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(dbgenerated("getutcdate()")) @db.DateTimeOffset
+  updatedAt              DateTime @default(dbgenerated("getutcdate()")) @updatedAt @db.DateTimeOffset
+
+  transitions StateTransition[]
+}
+
+model StateTransition {
+  stateTransitionId Int      @id @default(autoincrement())
+  groupId           Int
+  eventId           Int
+  fromId            Int
+  toId              Int
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(dbgenerated("getutcdate()")) @db.DateTimeOffset
+  updatedAt         DateTime @default(dbgenerated("getutcdate()")) @updatedAt @db.DateTimeOffset
+
+  group StateTransitionGroup @relation(fields: [groupId], references: [stateTransitionGroupId])
+  event StateEvent           @relation(fields: [eventId], references: [stateEventId])
+  from  State                @relation("RequestStatesToRequestTransitions_idRequestStateFrom", fields: [fromId], references: [stateId], onDelete: NoAction, onUpdate: NoAction)
+  to    State                @relation("RequestStatesToRequestTransitions_idRequestStateTo", fields: [toId], references: [stateId], onDelete: NoAction, onUpdate: NoAction)
+  roles Role[]
+
+  @@unique([groupId, eventId, fromId])
+}
+
+model StateEvent {
+  stateEventId Int      @id @default(autoincrement())
+  code         String   @unique @db.NVarChar(50)
+  description  String   @db.NVarChar(200)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(dbgenerated("getutcdate()")) @db.DateTimeOffset
+  updatedAt    DateTime @default(dbgenerated("getutcdate()")) @updatedAt @db.DateTimeOffset
+
+  transitions             StateTransition[]
+  dummyObjectStateHistory DummyObjectStateHistory[]
+}
+
+model DummyObject {
+  dummyObjectId Int      @id @default(autoincrement())
+  name          String   @unique
+  stateId       Int
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(dbgenerated("getutcdate()")) @db.DateTimeOffset
+  updatedAt     DateTime @default(dbgenerated("getutcdate()")) @updatedAt @db.DateTimeOffset
+
+  state   State                     @relation(fields: [stateId], references: [stateId])
+  history DummyObjectStateHistory[]
+}
+
+model DummyObjectStateHistory {
+  dummyObjectStateHistoryId Int      @id @default(autoincrement())
+  dummyObjectId             Int
+  stateId                   Int
+  eventId                   Int
+  createdAt                 DateTime @default(dbgenerated("getutcdate()")) @db.DateTimeOffset
+  updatedAt                 DateTime @default(dbgenerated("getutcdate()")) @updatedAt @db.DateTimeOffset
+
+  dummyObject DummyObject @relation(fields: [dummyObjectId], references: [dummyObjectId], onDelete: NoAction, onUpdate: NoAction)
+  state       State       @relation(fields: [stateId], references: [stateId], onDelete: NoAction, onUpdate: NoAction)
+  event       StateEvent  @relation(fields: [eventId], references: [stateEventId], onDelete: NoAction, onUpdate: NoAction)
+}
